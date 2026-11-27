@@ -1,0 +1,2278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S.A.M. Robotic Mission Control — Cyber-Precision Telemetry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/static/css/style.css?v=20261116_button_on">
+</head>
+<body>
+
+<div class="app-viewport">
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       BACKGROUND PATHS (Animated Floating Streamlines — 72 Paths)
+       ═══════════════════════════════════════════════════════════════ -->
+  <div class="bg-paths-container" id="bg-paths"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       TOP HEADER
+       ═══════════════════════════════════════════════════════════════ -->
+  <header class="top-header">
+    <!-- SELECT PORT -->
+    <div class="port-box">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <label class="port-label" for="port-select">HARDWARE LINK</label>
+        <span class="port-status-badge" id="port-status-pill">SEARCHING…</span>
+      </div>
+      <div class="port-input-wrap">
+        <select id="port-select" class="port-select" onchange="changePort()">
+          <option value="AUTO">AUTO (Detect Arduino)</option>
+        </select>
+        <button class="port-refresh-btn" onclick="fetchPorts(true)" title="Rescan &amp; Reconnect USB Arduino">&#8635;</button>
+      </div>
+    </div>
+
+    <!-- HEADER UTILITIES: CAMERA, GEMINI, E-STOP -->
+    <div class="header-center-tools">
+      <button class="liquid-glass-btn cam-glass-btn" onclick="toggleCamModal()" title="Open Expanded Live Camera Stream [480p]">
+        <span class="liquid-glass-glare"></span>
+        <span class="liquid-glass-shimmer"></span>
+        <svg class="liquid-glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span class="liquid-glass-text">CAMERA <span class="glass-pill-badge">10 FPS</span></span>
+      </button>
+
+      <button class="liquid-glass-btn gemini-glass-btn" onclick="toggleGeminiModal()" title="Configure Gemini AI Vision & API">
+        <span class="liquid-glass-glare"></span>
+        <span class="liquid-glass-shimmer"></span>
+        <svg class="liquid-glass-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/>
+        </svg>
+        <span class="liquid-glass-text">GEMINI API <span class="glass-pill-badge" id="gemini-pill-badge">CONFIG</span></span>
+      </button>
+
+      <button class="e-stop-btn" onclick="stopArm()" title="Emergency Immediate Hardware Halt">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/></svg>
+        <span>E-STOP</span>
+      </button>
+    </div>
+
+    <!-- BRAND / LOGO -->
+    <div class="creator-brand" onclick="toggleCamModal()" title="Click to view Live Camera [480p]">
+      <img src="/static/img/logo.png" alt="S.A.M. Logo" class="brand-avatar-logo">
+      <div>
+        <div class="creator-text">S.A.M.</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       MAIN STAGE: Left Controls, Center Arm & Sliders, Right Telemetry HUD
+       ═══════════════════════════════════════════════════════════════ -->
+  <main class="main-stage">
+
+    <!-- LEFT COLUMN CONTROLS -->
+    <div class="btn-col left-btn-col">
+      <!-- FLOW BUTTON: START ARM -->
+      <button class="flow-btn start-flow-btn" id="btn-arm-start" onclick="startArm()" title="Start and home robotic arm">
+        <svg class="flow-arrow flow-arr-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        <span class="flow-text">START ARM</span>
+        <span class="flow-circle"></span>
+        <svg class="flow-arrow flow-arr-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+
+      <!-- FLOW BUTTON: STOP ARM -->
+      <button class="flow-btn stop-flow-btn" id="btn-arm-stop" onclick="stopArm()" title="Halt all robotic arm movements">
+        <svg class="flow-arrow flow-arr-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        <span class="flow-text">STOP ARM</span>
+        <span class="flow-circle"></span>
+        <svg class="flow-arrow flow-arr-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+
+      <!-- MOTION ROUTINE SEQUENCER DECK -->
+      <div class="pose-routine-deck">
+        <div class="deck-title-row">
+          <span>MOTION ROUTINE</span>
+          <span class="deck-count" id="deck-pose-count">0 POSES</span>
+        </div>
+        <div class="deck-btn-grid">
+          <button class="micro-cyber-btn" onclick="savePosition()" title="Save current 6-joint angles as next waypoint">
+            <span>&plus;</span> RECORD
+          </button>
+          <button class="micro-cyber-btn accent-green" onclick="playMovements()" title="Play saved waypoint sequence">
+            <span>&blacktriangleright;</span> PLAY
+          </button>
+          <button class="micro-cyber-btn" onclick="homeArm()" title="Reset all joints to 90 deg Home pose">
+            <span>&circlearrowright;</span> HOME
+          </button>
+          <button class="micro-cyber-btn" onclick="toggleGripper()" title="Toggle Gripper Claw Open / Closed (145° / 20°)">
+            <span>&varr;</span> GRIPPER
+          </button>
+          <button class="micro-cyber-btn accent-amber" onclick="stopMovement()" title="Pause current routine playback">
+            <span>&squ;</span> PAUSE
+          </button>
+          <button class="micro-cyber-btn" onclick="clearPositions()" title="Clear all recorded waypoints">
+            <span>&times;</span> CLEAR
+          </button>
+          <button class="micro-cyber-btn accent-cyan" onclick="testJoints()" title="Hardware Diagnostic: Wiggles Pins 8-13 one-by-one">
+            <span>&#9881;</span> TEST HW
+          </button>
+          <button class="micro-cyber-btn" onclick="relaxArm()" title="Relax all servo motors (zero jitter)">
+            <span>&#9898;</span> RELAX
+          </button>
+          <button class="micro-cyber-btn accent-amber" onclick="unjamArm()" title="Emergency Unjam: Stops ticking and detaches J5 Wrist & J6 Gripper">
+            <span>&#9888;</span> UNJAM
+          </button>
+        </div>
+      </div>
+
+      <!-- PRESET POSITIONS / PREMADE POSES -->
+      <div class="pose-routine-deck" style="margin-top: 10px;">
+        <div class="deck-title-row">
+          <span>PRESET POSES</span>
+          <span class="deck-count" id="active-pose-tag" style="color: #00e5ff;">STANDBY</span>
+        </div>
+        <div class="deck-btn-grid" style="grid-template-columns: 1fr 1fr; gap: 6px;">
+          <button class="micro-cyber-btn" id="btn-pose-HOME" onclick="applyPose('HOME')" title="Home upright posture [90, 90, 90, 90, 90, 90]">
+            <span>🏠</span> HOME
+          </button>
+          <button class="micro-cyber-btn" id="btn-pose-SLEEP" onclick="applyPose('SLEEP')" title="Compact folded park pose [90, 142, 180, 90, 0, 0]">
+            <span>💤</span> SLEEP
+          </button>
+        </div>
+      </div>
+
+      <!-- MOTION SPEED & 360° SERVO CONTROLLER -->
+      <div class="pose-routine-deck" style="margin-top: 10px;">
+        <div class="deck-title-row">
+          <span>MOTION SPEED</span>
+          <span class="deck-count" id="speed-mode-label" style="color: #00e5ff;">⚡ INSTANT</span>
+        </div>
+        <div class="deck-btn-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 4px;">
+          <button class="micro-cyber-btn active-cyan" id="btn-speed-instant" onclick="setSpeedMode('INSTANT')" title="Zero Delay Real-Time Direct Slew">
+            ⚡ INSTANT
+          </button>
+          <button class="micro-cyber-btn" id="btn-speed-fast" onclick="setSpeedMode('FAST')" title="Sub-Second Fast Movement">
+            🚀 FAST
+          </button>
+          <button class="micro-cyber-btn" id="btn-speed-smooth" onclick="setSpeedMode('SMOOTH')" title="Smooth Controlled Motion">
+            🌊 SMOOTH
+          </button>
+        </div>
+        <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 10px; color: var(--text-muted); font-family: var(--font-mono);">J4/J5/J6 360° ALIGN:</span>
+          <button class="micro-cyber-btn active-green" id="btn-360-toggle" onclick="toggle360Mode()" style="padding: 4px 8px; font-size: 10px;" title="Scale 0°-180° to physical 180° window on 360° MG90S servos">
+            ACTIVE (1:1)
+          </button>
+        </div>
+        <div style="margin-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 10px; color: var(--text-muted); font-family: var(--font-mono);">GEMINI AI ENGINE:</span>
+          <button class="micro-cyber-btn active-green" id="btn-ai-toggle" onclick="toggleAIMode()" style="padding: 4px 8px; font-size: 10px;" title="Toggle Google Gemini AI Voice & Kinematics Control">
+            ACTIVE (ON)
+          </button>
+        </div>
+      </div>
+
+      <!-- FLOW BUTTON: CLOSE PROGRAM -->
+      <button class="flow-btn shutdown-flow-btn" id="btn-shutdown" onclick="shutdownProgram()" title="Cleanly stop and close the S.A.M. program">
+        <svg class="flow-arrow flow-arr-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        <span class="flow-text">CLOSE PROGRAM</span>
+        <span class="flow-circle"></span>
+        <svg class="flow-arrow flow-arr-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+
+      <!-- PLASMA RING VOICE ASSISTANT (Originkit 3D Shader Engine with Cyber Badge) -->
+      <div class="plasma-voice-widget" id="plasma-widget" title="Voice Assistant: English Only (Listening silently for 'give it to me', 'home', 'deliver')">
+        <div class="plasma-header-badge">
+          <span>VOICE INTELLIGENCE</span>
+          <span class="telem-dot online pulse"></span>
+        </div>
+        <canvas id="plasma-canvas" width="220" height="220"></canvas>
+        <div class="plasma-footer-status" id="plasma-footer-status">
+          LISTENING (ENGLISH COMMANDS)
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER STAGE: ROBOT ARM & SLIDERS (Structured Dual-Panel Mission Control) -->
+    <div class="arm-interactive-stage" id="stage-interactive">
+
+      <!-- 1. LEFT CARD: ROBOT ARM KINEMATICS VIEWPORT -->
+      <div class="hud-panel arm-telemetry-panel">
+        <div class="hud-panel-header">
+          <div class="hud-panel-title">
+            <span class="live-dot pulse"></span>
+            ROBOTIC KINEMATICS
+          </div>
+        </div>
+        <div class="arm-viewport-body">
+          <div class="arm-anchor-zone" id="arm-zone">
+            <div class="arm-pedestal-glow"></div>
+            <img src="/static/img/robot_arm.png" alt="S.A.M. Robotic Arm" class="robot-arm-img" id="arm-img">
+            
+            <!-- Exact Joint Pinpoints with Cyber Badges (6 Actuators: 5-Axis + 1 Gripper) -->
+            <div class="joint-anchor" id="ja-gripper" style="top: 5%; left: 50%;" title="Joint 6: Gripper (Claw)">
+              <span class="joint-glow-ring"></span>
+              <span class="joint-dot"></span>
+              <span class="joint-node-badge">J6</span>
+            </div>
+            <div class="joint-anchor" id="ja-roll" style="top: 21%; left: 52%;" title="Joint 5: Wrist Roll (Rotation)">
+              <span class="joint-glow-ring"></span>
+              <span class="joint-dot"></span>
+              <span class="joint-node-badge">J5</span>
+            </div>
+            <div class="joint-anchor" id="ja-wrist" style="top: 33%; left: 54%;" title="Joint 4: Wrist Pitch">
+              <span class="joint-glow-ring"></span>
+              <span class="joint-dot"></span>
+              <span class="joint-node-badge">J4</span>
+            </div>
+            <div class="joint-anchor" id="ja-elbow" style="top: 48%; left: 48%;" title="Joint 3: Elbow (Pitch)">
+              <span class="joint-glow-ring"></span>
+              <span class="joint-dot"></span>
+              <span class="joint-node-badge">J3</span>
+            </div>
+            <div class="joint-anchor" id="ja-shoulder" style="top: 65%; left: 50%;" title="Joint 2: Shoulder (Pitch)">
+              <span class="joint-glow-ring"></span>
+              <span class="joint-dot"></span>
+              <span class="joint-node-badge">J2</span>
+            </div>
+            <div class="joint-anchor" id="ja-base" style="top: 88%; left: 50%;" title="Joint 1: Base (Rotary)">
+              <span class="joint-glow-ring"></span>
+              <span class="joint-dot"></span>
+              <span class="joint-node-badge">J1</span>
+            </div>
+          </div>
+        </div>
+        <div class="arm-viewport-footer" style="border-top:none;"></div>
+      </div>
+
+      <!-- 2. RIGHT CARD: 5-AXIS + GRIPPER ACTUATORS CONTROL PANEL -->
+      <div class="hud-panel actuators-panel">
+        <div class="hud-panel-header">
+          <div class="hud-panel-title">
+            <span class="live-dot online pulse"></span>
+            JOINT CONTROLS
+          </div>
+        </div>
+        
+        <div class="sliders-list" id="sliders-panel">
+          <!-- Joint 6: Gripper (Claw) - Anatomical Top level with claw -->
+          <div class="joint-slider-row" id="row-gripper" data-joint="5">
+            <div class="joint-tag"><span class="j-num">J6</span> GRIPPER</div>
+            <span class="joint-angle-val" id="val-gripper">90.00</span>
+            <div class="joint-slider-bar" id="track-gripper" onmousedown="onSliderMouseDown(event, 5)" ontouchstart="onSliderTouchStart(event, 5)">
+              <div class="joint-slider-fill" id="fill-gripper" style="width: 56.25%;"></div>
+              <div class="joint-slider-thumb" id="thumb-gripper" style="left: 56.25%;"></div>
+            </div>
+            <div class="slider-ctrls-wrap">
+              <button class="step-btn" onclick="stepJoint(5, -5)" title="Step -5°">&minus;</button>
+              <button class="step-btn" onclick="stepJoint(5, 5)" title="Step +5°">&plus;</button>
+              <div class="joint-presets">
+                <button class="preset-chip" onclick="setJointPreset(5, 0)" title="0° (Shut)">0°</button>
+                <button class="preset-chip" onclick="setJointPreset(5, 45)" title="45°">45°</button>
+                <button class="preset-chip" onclick="setJointPreset(5, 90)" title="90°">90°</button>
+                <button class="preset-chip" onclick="setJointPreset(5, 145)" title="145° (Full Open)">145°</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Joint 5: Wrist Roll -->
+          <div class="joint-slider-row" id="row-roll" data-joint="4">
+            <div class="joint-tag"><span class="j-num">J5</span> WRIST ROLL</div>
+            <span class="joint-angle-val" id="val-roll">90.00</span>
+            <div class="joint-slider-bar" id="track-roll" onmousedown="onSliderMouseDown(event, 4)" ontouchstart="onSliderTouchStart(event, 4)">
+              <div class="joint-slider-fill" id="fill-roll" style="width: 50%;"></div>
+              <div class="joint-slider-thumb" id="thumb-roll" style="left: 50%;"></div>
+            </div>
+            <div class="slider-ctrls-wrap">
+              <button class="step-btn" onclick="stepJoint(4, -5)" title="Step -5°">&minus;</button>
+              <button class="step-btn" onclick="stepJoint(4, 5)" title="Step +5°">&plus;</button>
+              <div class="joint-presets">
+                <button class="preset-chip" onclick="setJointPreset(4, 30)">30°</button>
+                <button class="preset-chip" onclick="setJointPreset(4, 90)">90°</button>
+                <button class="preset-chip" onclick="setJointPreset(4, 160)">160°</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Joint 4: Wrist Pitch -->
+          <div class="joint-slider-row" id="row-wrist" data-joint="3">
+            <div class="joint-tag"><span class="j-num">J4</span> WRIST PITCH</div>
+            <span class="joint-angle-val" id="val-wrist">90.00</span>
+            <div class="joint-slider-bar" id="track-wrist" onmousedown="onSliderMouseDown(event, 3)" ontouchstart="onSliderTouchStart(event, 3)">
+              <div class="joint-slider-fill" id="fill-wrist" style="width: 50%;"></div>
+              <div class="joint-slider-thumb" id="thumb-wrist" style="left: 50%;"></div>
+            </div>
+            <div class="slider-ctrls-wrap">
+              <button class="step-btn" onclick="stepJoint(3, -5)" title="Step -5°">&minus;</button>
+              <button class="step-btn" onclick="stepJoint(3, 5)" title="Step +5°">&plus;</button>
+              <div class="joint-presets">
+                <button class="preset-chip" onclick="setJointPreset(3, 30)">30°</button>
+                <button class="preset-chip" onclick="setJointPreset(3, 90)">90°</button>
+                <button class="preset-chip" onclick="setJointPreset(3, 150)">150°</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Joint 3: Elbow -->
+          <div class="joint-slider-row" id="row-elbow" data-joint="2">
+            <div class="joint-tag"><span class="j-num">J3</span> ELBOW</div>
+            <span class="joint-angle-val" id="val-elbow">90.00</span>
+            <div class="joint-slider-bar" id="track-elbow" onmousedown="onSliderMouseDown(event, 2)" ontouchstart="onSliderTouchStart(event, 2)">
+              <div class="joint-slider-fill" id="fill-elbow" style="width: 50%;"></div>
+              <div class="joint-slider-thumb" id="thumb-elbow" style="left: 50%;"></div>
+            </div>
+            <div class="slider-ctrls-wrap">
+              <button class="step-btn" onclick="stepJoint(2, -5)" title="Step -5°">&minus;</button>
+              <button class="step-btn" onclick="stepJoint(2, 5)" title="Step +5°">&plus;</button>
+              <div class="joint-presets">
+                <button class="preset-chip" onclick="setJointPreset(2, 45)">45°</button>
+                <button class="preset-chip" onclick="setJointPreset(2, 90)">90°</button>
+                <button class="preset-chip" onclick="setJointPreset(2, 135)">135°</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Joint 2: Shoulder -->
+          <div class="joint-slider-row" id="row-shoulder" data-joint="1">
+            <div class="joint-tag"><span class="j-num">J2</span> SHOULDER</div>
+            <span class="joint-angle-val" id="val-shoulder">90.00</span>
+            <div class="joint-slider-bar" id="track-shoulder" onmousedown="onSliderMouseDown(event, 1)" ontouchstart="onSliderTouchStart(event, 1)">
+              <div class="joint-slider-fill" id="fill-shoulder" style="width: 50%;"></div>
+              <div class="joint-slider-thumb" id="thumb-shoulder" style="left: 50%;"></div>
+            </div>
+            <div class="slider-ctrls-wrap">
+              <button class="step-btn" onclick="stepJoint(1, -5)" title="Step -5°">&minus;</button>
+              <button class="step-btn" onclick="stepJoint(1, 5)" title="Step +5°">&plus;</button>
+              <div class="joint-presets">
+                <button class="preset-chip" onclick="setJointPreset(1, 45)">45°</button>
+                <button class="preset-chip" onclick="setJointPreset(1, 90)">90°</button>
+                <button class="preset-chip" onclick="setJointPreset(1, 135)">135°</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Joint 1: Base -->
+          <div class="joint-slider-row" id="row-base" data-joint="0">
+            <div class="joint-tag"><span class="j-num">J1</span> BASE (PAN)</div>
+            <span class="joint-angle-val" id="val-base">90.00</span>
+            <div class="joint-slider-bar" id="track-base" onmousedown="onSliderMouseDown(event, 0)" ontouchstart="onSliderTouchStart(event, 0)">
+              <div class="joint-slider-fill" id="fill-base" style="width: 50%;"></div>
+              <div class="joint-slider-thumb" id="thumb-base" style="left: 50%;"></div>
+            </div>
+            <div class="slider-ctrls-wrap">
+              <button class="step-btn" onclick="stepJoint(0, -5)" title="Step -5°">&minus;</button>
+              <button class="step-btn" onclick="stepJoint(0, 5)" title="Step +5°">&plus;</button>
+              <div class="joint-presets">
+                <button class="preset-chip" onclick="setJointPreset(0, 0)">0°</button>
+                <button class="preset-chip" onclick="setJointPreset(0, 90)">90°</button>
+                <button class="preset-chip" onclick="setJointPreset(0, 180)">180°</button>
+              </div>
+            </div>
+          </div>
+        </div><!-- end sliders-list -->
+      </div><!-- end actuators-panel -->
+
+      <!-- Hidden Leader SVG (preserved for API compatibility) -->
+      <svg class="leader-svg" id="leader-svg" style="display:none;"></svg>
+
+    </div><!-- end arm-interactive-stage -->
+
+    <!-- RIGHT COLUMN: VISION STREAM & CUBE MATRIX ONLY -->
+    <aside class="right-telemetry-col">
+
+      <!-- 1. LIVE VISION FEED HUD -->
+      <div class="hud-panel vision-hud-panel">
+        <div class="hud-panel-header">
+          <div class="hud-panel-title">
+            <span class="live-dot pulse"></span>
+            LIVE VISION STREAM
+          </div>
+          <span class="hud-fps-pill" id="stat-fps">10 FPS</span>
+        </div>
+        <div class="hud-stream-wrapper" onclick="toggleCamModal()" title="Click to expand Camera View">
+          <img id="right-cam-feed" src="/video" alt="S.A.M. Live Camera" onerror="this.style.display='none'; document.getElementById('cam-fallback').style.display='flex';" onload="this.style.display='block'; document.getElementById('cam-fallback').style.display='none';">
+          <div class="cam-fallback-box" id="cam-fallback" style="display:none;">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span>CAMERA STANDBY</span>
+          </div>
+          <div class="stream-crosshair"></div>
+          <div class="stream-badge-overlay">
+            <span id="stat-stream-res">640&times;480 &bull; 10 FPS</span>
+            <button class="stream-expand-icon" title="Expand View">&mapstoup;</button>
+          </div>
+        </div>
+        <div class="hud-stream-toolbar">
+          <button class="hud-micro-btn" id="btn-toggle-det" onclick="toggleDetectionOverlay()">
+            <span class="btn-led active" id="led-det"></span> TOGGLE AI OVERLAY
+          </button>
+          <button class="hud-micro-btn" onclick="triggerDeliver()">
+            DELIVER TO ME
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. AI TARGET DETECTION MATRIX (RED, GREEN, BLUE, BLACK) -->
+      <div class="hud-panel cubes-hud-panel">
+        <div class="hud-panel-header">
+          <div class="hud-panel-title">
+            <svg class="hud-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            CUBE TARGET MATRIX
+          </div>
+          <span class="hud-fps-pill" id="hud-cubes-summary">4 TARGETS</span>
+        </div>
+        <div class="cube-targets-grid">
+          <div class="cube-target-card" id="card-cube-RED">
+            <div class="cube-color-accent red"></div>
+            <div class="cube-card-main">
+              <div class="cube-card-top">
+                <span class="cube-name">RED CUBE</span>
+                <span class="cube-status-pill" id="status-RED">OFFLINE</span>
+              </div>
+              <div class="cube-coords" id="coords-RED">X: -- &bull; Y: --</div>
+            </div>
+          </div>
+          <div class="cube-target-card" id="card-cube-GREEN">
+            <div class="cube-color-accent green"></div>
+            <div class="cube-card-main">
+              <div class="cube-card-top">
+                <span class="cube-name">GREEN CUBE</span>
+                <span class="cube-status-pill" id="status-GREEN">OFFLINE</span>
+              </div>
+              <div class="cube-coords" id="coords-GREEN">X: -- &bull; Y: --</div>
+            </div>
+          </div>
+          <div class="cube-target-card" id="card-cube-BLUE">
+            <div class="cube-color-accent blue"></div>
+            <div class="cube-card-main">
+              <div class="cube-card-top">
+                <span class="cube-name">BLUE CUBE</span>
+                <span class="cube-status-pill" id="status-BLUE">OFFLINE</span>
+              </div>
+              <div class="cube-coords" id="coords-BLUE">X: -- &bull; Y: --</div>
+            </div>
+          </div>
+          <div class="cube-target-card" id="card-cube-BLACK">
+            <div class="cube-color-accent black"></div>
+            <div class="cube-card-main">
+              <div class="cube-card-top">
+                <span class="cube-name">BLACK CUBE</span>
+                <span class="cube-status-pill" id="status-BLACK">OFFLINE</span>
+              </div>
+              <div class="cube-coords" id="coords-BLACK">X: -- &bull; Y: --</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       BOTTOM FOOTER (Status Message & System Metrics)
+       ═══════════════════════════════════════════════════════════════ -->
+  <footer class="bottom-footer">
+    <div class="saved-counter-badge" id="saved-counter">POSITIONS SAVED: 0</div>
+    <div class="system-status-msg" id="status-msg">M O V E M E N T S &nbsp; S T O P P E D</div>
+    <div style="font-family:var(--font-mono); font-size:11px; color:var(--text-dim); display:flex; gap:16px; align-items:center;">
+      <span id="footer-clock">00:00:00</span>
+      <span id="footer-hw-status" style="color:var(--accent-green);">&bull; HARDWARE ACTIVE</span>
+    </div>
+  </footer>
+
+</div><!-- end app-viewport -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     CAMERA 480p @ 10 FPS VISION MODAL
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="pip-modal-overlay" id="cam-modal" onclick="if(event.target===this) toggleCamModal()">
+  <div class="pip-dialog">
+    <div class="pip-header">
+      <span class="pip-title">CAMERA VISION STREAM (480p &bull; 10 FPS)</span>
+      <button class="pip-close-btn" onclick="toggleCamModal()">&times;</button>
+    </div>
+    <div class="pip-body">
+      <div class="video-stream-box">
+        <img id="cam-feed-img" src="/video" alt="S.A.M. Live Camera" />
+        <div class="video-stream-tag" id="cam-fps-tag">480p &bull; 10.0 FPS</div>
+      </div>
+      
+      <!-- Cube detection status -->
+      <div class="cubes-status-bar">
+        <div class="cube-pill" id="chip-RED">
+          <span>RED CUBE</span>
+          <span class="cube-dot" style="background:#ff334b;"></span>
+        </div>
+        <div class="cube-pill" id="chip-GREEN">
+          <span>GREEN CUBE</span>
+          <span class="cube-dot" style="background:#00e676;"></span>
+        </div>
+        <div class="cube-pill" id="chip-BLUE">
+          <span>BLUE CUBE</span>
+          <span class="cube-dot" style="background:#00b0ff;"></span>
+        </div>
+        <div class="cube-pill" id="chip-BLACK">
+          <span>BLACK CUBE</span>
+          <span class="cube-dot" style="background:#444;"></span>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <button class="mini-tool-btn" style="height:36px; padding:0 14px;" onclick="toggleDetectionOverlay()">
+          TOGGLE AI OVERLAYS
+        </button>
+        <button class="mini-tool-btn" style="height:36px; padding:0 14px;" onclick="triggerDeliver()">
+          TRIGGER DELIVERY
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     GEMINI API KEY MODAL
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="pip-modal-overlay" id="gemini-modal" onclick="if(event.target===this) toggleGeminiModal()">
+  <div class="pip-dialog" style="max-width:480px;">
+    <div class="pip-header">
+      <span class="pip-title">GOOGLE GEMINI API KEY</span>
+      <button class="pip-close-btn" onclick="toggleGeminiModal()">&times;</button>
+    </div>
+    <div class="pip-body">
+      <p style="font-size:12px; color:#9aa7bc; line-height:1.5;">
+        Configure your Gemini API key for intelligent conversational voice commands and spatial understanding.
+      </p>
+      <input type="password" id="inp-gemini-key" class="gemini-input" placeholder="AIzaSy... Paste API Key">
+      <!-- Inline error — no popup blocker -->
+      <div id="gemini-key-error" style="display:none; font-size:11.5px; color:#ff5566; background:rgba(255,51,75,0.12); border:1px solid rgba(255,51,75,0.4); border-radius:6px; padding:7px 10px; margin-top:4px;"></div>
+      <button class="save-key-btn" onclick="saveGeminiKey()">SAVE KEY</button>
+      <div style="font-size:11px; color:#777;">
+        Get a key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#00e5ff; text-decoration:underline;">aistudio.google.com</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAIN JAVASCRIPT LOGIC
+     ═══════════════════════════════════════════════════════════════ -->
+<script>
+// ── Global State ───────────────────────────────────────────────────────────
+// Joints index mapping: 0: Base, 1: Shoulder, 2: Elbow, 3: Wrist Pitch, 4: Wrist Roll, 5: Gripper
+const jointNames = ["base", "shoulder", "elbow", "wrist", "roll", "gripper"];
+let currentAngles = [90.00, 90.00, 90.00, 90.00, 90.00, 90.00];
+let savedPositions = [];
+let isPlaying = false;
+let playAbortSignal = false;
+let activeDragJoint = null;
+
+// Initial setup on DOM ready
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    const savedK = localStorage.getItem("sam_gemini_key");
+    if (savedK) {
+      const inp = document.getElementById("inp-gemini-key");
+      if (inp) inp.value = savedK;
+      fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: savedK })
+      }).then(r => r.json()).then(res => {
+        if (res.ok) {
+          geminiIsReady = true;
+          const gemBadge = document.getElementById("gemini-pill-badge");
+          if (gemBadge) { gemBadge.textContent = "ONLINE"; gemBadge.style.color = "#00e676"; }
+        }
+      }).catch(() => {});
+    }
+  } catch(e) {}
+  try { initSliders(); } catch(e) { console.error("initSliders:", e); }
+  try { fetchPorts(); } catch(e) { console.error("fetchPorts:", e); }
+  try { initBackgroundPaths(); } catch(e) { console.error("initBackgroundPaths:", e); }
+  try { initPlasmaRing(); } catch(e) { console.error("initPlasmaRing:", e); }
+  try { initVoiceAssistant(); } catch(e) { console.error("initVoiceAssistant:", e); }
+  try { updateLeaderLines(); } catch(e) { console.error("updateLeaderLines:", e); }
+  try { initJointSync(); } catch(e) { console.error("initJointSync:", e); }
+  try { startStatusPolling(); } catch(e) { console.error("startStatusPolling:", e); }
+  
+  window.addEventListener("resize", () => {
+    try { updateLeaderLines(); } catch(e) {}
+  });
+
+  const stage = document.getElementById("stage-interactive");
+  if (stage && window.ResizeObserver) {
+    const ro = new ResizeObserver(() => updateLeaderLines());
+    ro.observe(stage);
+  }
+
+  // Calm leader line alignment: updates once after image loads without any repeated DOM wiping
+  const img = document.getElementById("arm-img");
+  if (img) {
+    if (img.complete) {
+      setTimeout(updateLeaderLines, 80);
+    } else {
+      img.onload = () => setTimeout(updateLeaderLines, 80);
+    }
+  }
+
+  // Initialize preset pose button state & active styling
+  try {
+    const initPose = checkMatchingPose(currentAngles);
+    highlightPoseButton(initPose || "HOME");
+  } catch(e) {}
+
+  // Safety settlement timeout
+  setTimeout(updateLeaderLines, 300);
+});
+
+// ── Slider Initialization & Dragging ───────────────────────────────────────
+// Gripper (J6) Calibration Settings
+const GRIPPER_CFG = {
+  OPEN: 145,
+  CLOSE: 0,
+  MIN: 0,
+  MAX: 145
+};
+
+// Exact hardware safety angle limits matching sam_firmware.ino and app.py
+const jointLimits = [
+  { min: 0,  max: 180 },  // J1: Base Pan (Rotation)
+  { min: 0,  max: 180 },  // J2: Shoulder Pitch (Elevation)
+  { min: 0,  max: 180 },  // J3: Elbow Pitch (Reach - MG995)
+  { min: 0,  max: 180 },  // J4: Wrist Pitch (Flexion - MG90S)
+  { min: 0,  max: 160 },  // J5: Wrist Roll (Rotation)
+  { min: GRIPPER_CFG.MIN, max: GRIPPER_CFG.MAX }   // J6: End-Effector Gripper (MG90S - 0° Shut to 145° Open Max)
+];
+
+let isAnatomicalOrder = true;
+function toggleSliderOrder() {
+  isAnatomicalOrder = !isAnatomicalOrder;
+  const list = document.getElementById("sliders-panel");
+  const btn = document.getElementById("btn-toggle-order");
+  if (isAnatomicalOrder) {
+    list.classList.remove("order-kinematic");
+    if (btn) btn.innerHTML = "SORT: TOP &darr; BASE";
+  } else {
+    list.classList.add("order-kinematic");
+    if (btn) btn.innerHTML = "SORT: J1 &darr; J6";
+  }
+}
+
+function initSliders() {
+  jointNames.forEach((name, idx) => {
+    updateSliderUI(idx, currentAngles[idx]);
+  });
+}
+
+function updateSliderUI(jointIdx, angle) {
+  const name = jointNames[jointIdx];
+  const valEl = document.getElementById(`val-${name}`);
+  const fillEl = document.getElementById(`fill-${name}`);
+  const thumbEl = document.getElementById(`thumb-${name}`);
+  if (!valEl || !fillEl) return;
+
+  valEl.textContent = Number(angle).toFixed(2);
+  const lim = jointLimits[jointIdx] || { min: 0, max: 180 };
+  const pct = Math.max(0, Math.min(100, ((angle - lim.min) / (lim.max - lim.min)) * 100));
+  fillEl.style.width = pct + "%";
+  if (thumbEl) thumbEl.style.left = pct + "%";
+
+  // Light up the matching preset degree button on the slider row
+  const row = document.getElementById(`row-${name}`);
+  if (row) {
+    const chips = row.querySelectorAll(".preset-chip");
+    const roundedAng = Math.round(Number(angle));
+    chips.forEach(chip => {
+      const chipVal = parseInt(chip.textContent, 10);
+      if (!isNaN(chipVal) && chipVal === roundedAng) {
+        chip.classList.add("active");
+      } else {
+        chip.classList.remove("active");
+      }
+    });
+  }
+}
+
+function onSliderMouseDown(e, jointIdx) {
+  activeDragJoint = jointIdx;
+  handleSliderMove(e, jointIdx);
+  window.addEventListener("mousemove", onSliderMouseMove);
+  window.addEventListener("mouseup", onSliderMouseUp);
+}
+
+function onSliderMouseMove(e) {
+  if (activeDragJoint === null) return;
+  handleSliderMove(e, activeDragJoint);
+}
+
+function onSliderMouseUp() {
+  if (activeDragJoint !== null) {
+    throttleSendAngles(true); // Flush final exact position immediately
+    activeDragJoint = null;
+  }
+  window.removeEventListener("mousemove", onSliderMouseMove);
+  window.removeEventListener("mouseup", onSliderMouseUp);
+}
+
+function onSliderTouchStart(e, jointIdx) {
+  activeDragJoint = jointIdx;
+  if (e.touches && e.touches[0]) handleSliderMove(e.touches[0], jointIdx);
+  window.addEventListener("touchmove", onSliderTouchMove);
+  window.addEventListener("touchend", onSliderTouchEnd);
+}
+
+function onSliderTouchMove(e) {
+  if (activeDragJoint === null) return;
+  if (e.touches && e.touches[0]) handleSliderMove(e.touches[0], activeDragJoint);
+}
+
+function onSliderTouchEnd() {
+  if (activeDragJoint !== null) {
+    throttleSendAngles(true); // Flush final exact position immediately
+    activeDragJoint = null;
+  }
+  window.removeEventListener("touchmove", onSliderTouchMove);
+  window.removeEventListener("touchend", onSliderTouchEnd);
+}
+
+function handleSliderMove(e, jointIdx) {
+  const name = jointNames[jointIdx];
+  const track = document.getElementById(`track-${name}`);
+  if (!track) return;
+  const rect = track.getBoundingClientRect();
+  const rawX = e.clientX - rect.left;
+  const pct = Math.max(0, Math.min(1, rawX / rect.width));
+  const lim = jointLimits[jointIdx] || { min: 0, max: 180 };
+  const rawAngle = lim.min + pct * (lim.max - lim.min);
+  const angle = Math.round(rawAngle * 100) / 100;
+
+  currentAngles[jointIdx] = angle;
+  if (jointIdx === 5) {
+    gripperIsOpen = (angle >= (GRIPPER_CFG.OPEN + GRIPPER_CFG.CLOSE) / 2);
+  }
+  updateSliderUI(jointIdx, angle);
+  const matched = checkMatchingPose(currentAngles);
+  highlightPoseButton(matched);
+  throttleSendAngles(false); // Live stream angle through latest-value queue!
+}
+
+// ── Ultra-Smooth Real-Time Slider Command Queue (Latest-Value Buffer) ──────────
+let lastSendTime = 0;
+let throttleTimer = null;
+let lastSentAngles = [];
+let isSending = false;
+let pendingAngles = null;
+let THROTTLE_MS = 25; // 25ms (~40 Hz) for instantaneous live slider tracking!
+
+function throttleSendAngles(force = false) {
+  const current = currentAngles.map(a => Math.round(Number(a)));
+
+  // Always update pendingAngles with the absolute latest state requested
+  pendingAngles = [...current];
+
+  if (force) {
+    if (throttleTimer) {
+      clearTimeout(throttleTimer);
+      throttleTimer = null;
+    }
+    processAngleQueue();
+    return;
+  }
+
+  const now = Date.now();
+  const elapsed = now - lastSendTime;
+
+  if (elapsed >= THROTTLE_MS) {
+    if (throttleTimer) {
+      clearTimeout(throttleTimer);
+      throttleTimer = null;
+    }
+    processAngleQueue();
+  } else if (!throttleTimer) {
+    throttleTimer = setTimeout(() => {
+      throttleTimer = null;
+      processAngleQueue();
+    }, THROTTLE_MS - elapsed);
+  }
+}
+
+async function processAngleQueue() {
+  // If an HTTP request is already in-flight, do not send an overlapping request.
+  // The in-flight request's finally block will call processAngleQueue()
+  // to deliver the newest pending angles as soon as it finishes.
+  if (isSending) {
+    return;
+  }
+
+  if (!pendingAngles) {
+    return;
+  }
+
+  const toSend = [...pendingAngles];
+  // Determine if this snapshot differs from what was last transmitted
+  const changed = toSend.some((v, idx) => v !== lastSentAngles[idx]);
+  if (!changed) {
+    pendingAngles = null;
+    return;
+  }
+
+  pendingAngles = null;
+  isSending = true;
+  lastSendTime = Date.now();
+
+  try {
+    await sendAngles(toSend);
+    lastSentAngles = [...toSend];
+  } catch (err) {
+    console.error("Angle transmission failed:", err);
+  } finally {
+    isSending = false;
+    // If during transmission, a newer angle arrived in pendingAngles,
+    // dispatch it respecting the 60ms throttle window.
+    if (pendingAngles) {
+      const pendingChanged = pendingAngles.some((v, idx) => v !== lastSentAngles[idx]);
+      if (pendingChanged) {
+        const elapsedSinceSend = Date.now() - lastSendTime;
+        if (elapsedSinceSend >= THROTTLE_MS) {
+          processAngleQueue();
+        } else if (!throttleTimer) {
+          throttleTimer = setTimeout(() => {
+            throttleTimer = null;
+            processAngleQueue();
+          }, THROTTLE_MS - elapsedSinceSend);
+        }
+      } else {
+        pendingAngles = null;
+      }
+    }
+  }
+}
+
+async function sendAngles(angles) {
+  if (!angles || angles.length !== 6) {
+    console.warn("sendAngles requires 6 joint angles [J1..J6], got:", angles);
+    return;
+  }
+  const payload = {
+    angles: angles.map(a => Math.round(Number(a)))
+  };
+  const res = await fetch("/api/angles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+  }
+}
+
+// ── Leader Lines & Joint Hover Synchronization ─────────────────────────────
+function updateLeaderLines() {
+  const svg = document.getElementById("leader-svg");
+  if (!svg || svg.style.display === "none") return;
+}
+
+function initJointSync() {
+  const joints = ["base", "shoulder", "elbow", "wrist", "roll", "gripper"];
+  joints.forEach((name, idx) => {
+    const anchor = document.getElementById(`ja-${name}`);
+    const row = document.getElementById(`row-${name}`);
+    if (!anchor || !row) return;
+
+    const activate = () => {
+      anchor.classList.add("active");
+      row.classList.add("active");
+    };
+    const deactivate = () => {
+      anchor.classList.remove("active");
+      row.classList.remove("active");
+    };
+
+    anchor.addEventListener("mouseenter", activate);
+    anchor.addEventListener("mouseleave", deactivate);
+    row.addEventListener("mouseenter", activate);
+    row.addEventListener("mouseleave", deactivate);
+
+    anchor.addEventListener("click", () => {
+      row.classList.add("active");
+      setTimeout(() => row.classList.remove("active"), 1200);
+      setStatus(`SELECTED &nbsp; J${idx + 1}: ${name.toUpperCase()} &nbsp; (${currentAngles[idx]}&deg;)`);
+    });
+  });
+}
+
+// ── Status Display ─────────────────────────────────────────────────────────
+function setStatus(msg) {
+  const el = document.getElementById("status-msg");
+  if (el) el.innerHTML = msg;
+}
+
+function updateSavedCount() {
+  const el = document.getElementById("saved-counter");
+  const deckEl = document.getElementById("deck-pose-count");
+  if (el) el.textContent = `POSITIONS SAVED: ${savedPositions.length}`;
+  if (deckEl) deckEl.textContent = `${savedPositions.length} POSES`;
+}
+
+function savePosition() {
+  const pos = [...currentAngles];
+  savedPositions.push(pos);
+  updateSavedCount();
+  setStatus(`P O S I T I O N &nbsp; ${savedPositions.length} &nbsp; S A V E D`);
+}
+
+function clearPositions() {
+  savedPositions = [];
+  updateSavedCount();
+  setStatus("M O T I O N &nbsp; R O U T I N E &nbsp; C L E A R E D");
+}
+
+const PRESET_POSES = {
+  HOME:  { name: "HOME",  angles: [90, 90, 90, 90, 90, 90],  desc: "Home Upright Pose" },
+  SLEEP: { name: "SLEEP", angles: [90, 142, 180, 90, 0, 0],   desc: "Park / Folded Sleep" }
+};
+
+function highlightPoseButton(poseKey) {
+  const poseKeys = ["HOME", "SLEEP"];
+  poseKeys.forEach(k => {
+    const btn = document.getElementById(`btn-pose-${k}`);
+    if (btn) {
+      if (k === poseKey) {
+        btn.classList.add("active-pose");
+      } else {
+        btn.classList.remove("active-pose");
+      }
+    }
+  });
+  const tag = document.getElementById("active-pose-tag");
+  if (tag) {
+    tag.textContent = poseKey || "CUSTOM";
+    tag.style.color = poseKey ? "#00e5ff" : "#9aa7bc";
+  }
+}
+
+function checkMatchingPose(angles) {
+  if (!angles || angles.length !== 6) return null;
+  for (const [key, pose] of Object.entries(PRESET_POSES)) {
+    const match = pose.angles.every((target, idx) => Math.abs(Math.round(Number(angles[idx])) - target) <= 2);
+    if (match) return key;
+  }
+  return null;
+}
+
+async function applyPose(poseKey) {
+  const pose = PRESET_POSES[poseKey];
+  if (!pose) return;
+  highlightPoseButton(poseKey);
+  currentAngles = [...pose.angles];
+  currentAngles.forEach((ang, idx) => updateSliderUI(idx, ang));
+  gripperIsOpen = (currentAngles[5] >= (GRIPPER_CFG.OPEN + GRIPPER_CFG.CLOSE) / 2);
+  setStatus(`P O S E &nbsp; &rarr; &nbsp; ${pose.name} &nbsp; ( ${pose.desc.toUpperCase()} )`);
+  try {
+    await fetch("/api/pose", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: poseKey })
+    });
+  } catch(e) {
+    throttleSendAngles(true);
+  }
+}
+
+async function homeArm() {
+  await applyPose("HOME");
+}
+
+let gripperIsOpen = true;
+function toggleGripper() {
+  gripperIsOpen = !gripperIsOpen;
+  const targetAngle = gripperIsOpen ? GRIPPER_CFG.OPEN : GRIPPER_CFG.CLOSE;
+  currentAngles[5] = targetAngle;
+  updateSliderUI(5, targetAngle);
+  const matched = checkMatchingPose(currentAngles);
+  highlightPoseButton(matched);
+  throttleSendAngles(true); // Single unified control path via latest-value queue
+  setStatus(gripperIsOpen ? `G R I P P E R &nbsp; O P E N E D &nbsp; ( ${targetAngle} &deg; )` : `G R I P P E R &nbsp; C L O S E D &nbsp; ( ${targetAngle} &deg; )`);
+}
+
+async function unjamArm() {
+  setStatus("E M E R G E N C Y &nbsp; U N J A M &nbsp; &rarr; &nbsp; DETACHING J5 & J6");
+  try {
+    await fetch("/api/unjam", { method: "POST" });
+  } catch(e) {}
+}
+
+async function testJoints() {
+  setStatus("T E S T I N G &nbsp; H A R D W A R E &nbsp; ( P I N S &nbsp; 8 - 1 3 )");
+  try {
+    await fetch("/api/arm/test", { method: "POST" });
+  } catch(e) {}
+}
+
+let currentSpeedSetting = "INSTANT";
+async function setSpeedMode(mode) {
+  currentSpeedSetting = mode;
+  if (mode === "INSTANT") THROTTLE_MS = 25;
+  else if (mode === "FAST") THROTTLE_MS = 35;
+  else THROTTLE_MS = 60;
+
+  const lbl = document.getElementById("speed-mode-label");
+  if (lbl) {
+    if (mode === "INSTANT") lbl.textContent = "⚡ INSTANT";
+    else if (mode === "FAST") lbl.textContent = "🚀 FAST";
+    else lbl.textContent = "🌊 SMOOTH";
+  }
+
+  const bInst = document.getElementById("btn-speed-instant");
+  const bFast = document.getElementById("btn-speed-fast");
+  const bSmooth = document.getElementById("btn-speed-smooth");
+  if (bInst) bInst.className = (mode === "INSTANT") ? "micro-cyber-btn active-cyan" : "micro-cyber-btn";
+  if (bFast) bFast.className = (mode === "FAST") ? "micro-cyber-btn active-cyan" : "micro-cyber-btn";
+  if (bSmooth) bSmooth.className = (mode === "SMOOTH") ? "micro-cyber-btn active-cyan" : "micro-cyber-btn";
+
+  setStatus(`M O T I O N &nbsp; S P E E D &nbsp; &rarr; &nbsp; ${mode}`);
+  try {
+    await fetch("/api/speed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: mode })
+    });
+  } catch(e) {}
+}
+
+let is360ModeActive = true;
+async function toggle360Mode() {
+  is360ModeActive = !is360ModeActive;
+  const btn = document.getElementById("btn-360-toggle");
+  if (btn) {
+    btn.textContent = is360ModeActive ? "ACTIVE (1:1)" : "OFF (180°)";
+    btn.className = is360ModeActive ? "micro-cyber-btn active-green" : "micro-cyber-btn accent-amber";
+  }
+  setStatus(is360ModeActive ? "J4/J5/J6 &nbsp; 3 6 0 &deg; &nbsp; A L I G N M E N T &nbsp; [A C T I V E]" : "J4/J5/J6 &nbsp; S E R V O &nbsp; M O D E &nbsp; [S T A N D A R D]");
+  try {
+    await fetch("/api/mode360", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: is360ModeActive })
+    });
+  } catch(e) {}
+}
+
+let isAIModeActive = true;
+function toggleAIMode() {
+  isAIModeActive = !isAIModeActive;
+  geminiIsReady = isAIModeActive;
+  const btn = document.getElementById("btn-ai-toggle");
+  if (btn) {
+    btn.textContent = isAIModeActive ? "ACTIVE (ON)" : "OFF (MANUAL)";
+    btn.className = isAIModeActive ? "micro-cyber-btn active-green" : "micro-cyber-btn";
+  }
+  setStatus(isAIModeActive ? "G E M I N I &nbsp; A I &nbsp; E N G I N E &nbsp; [A C T I V E]" : "G E M I N I &nbsp; A I &nbsp; E N G I N E &nbsp; [O F F]");
+}
+
+function stepJoint(idx, delta) {
+  const lim = jointLimits[idx] || { min: 0, max: 180 };
+  let val = currentAngles[idx] + delta;
+  val = Math.max(lim.min, Math.min(lim.max, Math.round(val)));
+  currentAngles[idx] = val;
+  if (idx === 5) {
+    gripperIsOpen = (val >= (GRIPPER_CFG.OPEN + GRIPPER_CFG.CLOSE) / 2);
+  }
+  updateSliderUI(idx, val);
+  const matched = checkMatchingPose(currentAngles);
+  highlightPoseButton(matched);
+  throttleSendAngles(true); // Instant dispatch on button step
+  setStatus(`J O I N T &nbsp; J${idx + 1} (${jointNames[idx].toUpperCase()}) &nbsp; &rarr; &nbsp; ${val}&deg;`);
+}
+
+function setJointPreset(idx, val) {
+  const lim = jointLimits[idx] || { min: 0, max: 180 };
+  val = Math.max(lim.min, Math.min(lim.max, Math.round(val)));
+  currentAngles[idx] = val;
+  if (idx === 5) {
+    gripperIsOpen = (val >= (GRIPPER_CFG.OPEN + GRIPPER_CFG.CLOSE) / 2);
+  }
+  updateSliderUI(idx, val);
+  const matched = checkMatchingPose(currentAngles);
+  highlightPoseButton(matched);
+  throttleSendAngles(true); // Instant dispatch on preset click
+  setStatus(`J O I N T &nbsp; J${idx + 1} (${jointNames[idx].toUpperCase()}) &nbsp; &rarr; &nbsp; ${val}&deg;`);
+}
+
+function clearLocalLogs() {
+  const win = document.getElementById("terminal-logs-window");
+  if (win) win.innerHTML = '<div class="log-line"><span class="log-t">[SYS]</span> Console cleared by operator</div>';
+}
+
+async function playMovements() {
+  if (savedPositions.length === 0) {
+    alert("No positions recorded yet! Adjust the sliders and click '+ RECORD' first.");
+    return;
+  }
+  if (isPlaying) return;
+
+  isPlaying = true;
+  playAbortSignal = false;
+
+  for (let i = 0; i < savedPositions.length; i++) {
+    if (playAbortSignal) break;
+
+    setStatus(`P L A Y I N G &nbsp; ( ${i + 1} / ${savedPositions.length} )`);
+    const pos = savedPositions[i];
+    currentAngles = [...pos];
+    initSliders();
+    await sendAngles(pos);
+
+    // Calculate maximum degrees traveled across all 6 joints to give enough time for sequential movement
+    let totalEstimatedMs = 1200;
+    const prevPos = i > 0 ? savedPositions[i - 1] : [90, 90, 90, 90, 90, 100];
+    for (let j = 0; j < 6; j++) {
+      const diff = Math.abs(pos[j] - prevPos[j]);
+      if (diff >= 1) {
+        totalEstimatedMs += (diff * 125) + 500; // 125ms per degree + 500ms settle pause
+      }
+    }
+
+    const stepStart = Date.now();
+    while (Date.now() - stepStart < totalEstimatedMs) {
+      if (playAbortSignal) break;
+      await new Promise(r => setTimeout(r, 50));
+    }
+  }
+
+  isPlaying = false;
+  if (!playAbortSignal) {
+    setStatus("M O V E M E N T S &nbsp; C O M P L E T E D");
+  } else {
+    setStatus("M O V E M E N T S &nbsp; S T O P P E D");
+  }
+}
+
+function stopMovement() {
+  playAbortSignal = true;
+  isPlaying = false;
+  setStatus("M O V E M E N T S &nbsp; S T O P P E D");
+  stopArm();
+}
+
+// ── Arm Power & Program Controls ──────────────────────────────────────────
+async function startArm() {
+  setStatus("A R M &nbsp; S T A R T E D &nbsp; ( H O M I N G )");
+  try {
+    const res = await (await fetch("/api/arm/start", { method: "POST" })).json();
+    currentAngles = [90.00, 90.00, 90.00, 90.00, 90.00, 90.00];
+    initSliders();
+    setStatus("A R M &nbsp; A C T I V E &nbsp; &bull; &nbsp; O N L I N E");
+  } catch(e) {
+    setStatus("A R M &nbsp; C O N N E C T &nbsp; F A I L");
+  }
+}
+
+async function stopArm() {
+  playAbortSignal = true;
+  isPlaying = false;
+  setStatus("A R M &nbsp; H A L T E D &nbsp; [S T O P]");
+  try {
+    await fetch("/api/arm/stop", { method: "POST" });
+  } catch(e) {}
+}
+
+async function relaxArm() {
+  setStatus("S E R V O S &nbsp; R E L A X E D &nbsp; ( S I L E N T )");
+  try {
+    await fetch("/api/arm/relax", { method: "POST" });
+  } catch(e) {}
+}
+
+async function unjamArm() {
+  setStatus("E M E R G E N C Y &nbsp; U N J A M &nbsp; [J5/J6 DETACHED]");
+  try {
+    await fetch("/api/unjam", { method: "POST" });
+  } catch(e) {}
+}
+
+async function holdArm() {
+  setStatus("S E R V O S &nbsp; H O L D I N G");
+  try {
+    await fetch("/api/arm/hold", { method: "POST" });
+  } catch(e) {}
+}
+
+async function shutdownProgram() {
+  if (!confirm("Are you sure you want to stop the robotic arm and close the S.A.M. program?")) return;
+  setStatus("S H U T T I N G &nbsp; D O W N . . .");
+  try {
+    await fetch("/api/shutdown", { method: "POST" });
+  } catch(e) {}
+  document.body.innerHTML = `
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#07080b; color:#ffffff; font-family:'Inter', sans-serif; text-align:center; padding:20px;">
+      <div style="width:68px; height:68px; border-radius:50%; background:#19090c; border:2px solid #ff3859; display:flex; align-items:center; justify-content:center; margin-bottom:20px; font-size:30px; color:#ff3859;">✕</div>
+      <h1 style="font-size:30px; font-weight:800; letter-spacing:2px; margin-bottom:12px; color:#ffffff;">S.A.M. PROGRAM STOPPED</h1>
+      <p style="font-size:15px; color:#9aa7bc; max-width:440px; line-height:1.6; margin-bottom:24px;">The Python server and hardware controller have been shut down cleanly. You can now safely close this browser window.</p>
+      <div style="font-family:'JetBrains Mono', monospace; font-size:12px; color:#00e5ff; background:#121624; padding:10px 18px; border-radius:4px; border:1px solid rgba(0,229,255,0.25);">Hardware &amp; Server Offline [OK]</div>
+    </div>
+  `;
+}
+
+// ── Ports & Serial Connection ──────────────────────────────────────────────
+let lastPortsJson = "";
+let isPortSwitching = false;
+
+async function fetchPorts(userTriggered = false) {
+  if (isPortSwitching) return;
+  try {
+    const res = await (await fetch("/api/ports")).json();
+    const sel = document.getElementById("port-select");
+    const pill = document.getElementById("port-status-pill");
+    const footerHw = document.getElementById("footer-hw-status");
+
+    // 1. Update Hardware Status Pill
+    if (pill) {
+      if (res.connected) {
+        pill.textContent = `● CONNECTED (${res.current})`;
+        pill.className = "port-status-badge connected";
+      } else {
+        pill.textContent = (res.current && res.current !== "NONE") ? `○ MOCK (${res.current})` : "○ SIMULATION (MOCK)";
+        pill.className = "port-status-badge";
+      }
+    }
+
+    // 2. Update Footer Hardware Status
+    if (footerHw) {
+      if (res.connected) {
+        footerHw.textContent = `● HARDWARE CONNECTED (${res.current})`;
+        footerHw.style.color = "var(--accent-green)";
+      } else {
+        footerHw.textContent = "○ SIMULATION / MOCK";
+        footerHw.style.color = "#ffb300";
+      }
+    }
+
+    // 3. Only update dropdown DOM if port list or active connection actually changed
+    const currentJson = JSON.stringify({ ports: res.ports, curr: res.current, conn: res.connected });
+    if (currentJson === lastPortsJson && !userTriggered) return;
+    lastPortsJson = currentJson;
+
+    const previousVal = sel.value;
+    sel.innerHTML = "";
+
+    // Default "AUTO" option
+    const optAuto = document.createElement("option");
+    optAuto.value = "AUTO";
+    optAuto.textContent = res.connected ? `AUTO (Active: ${res.current})` : "AUTO (Scan Arduino Uno)";
+    sel.appendChild(optAuto);
+
+    if (res.ports && res.ports.length > 0) {
+      res.ports.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.d;
+        let suffix = "";
+        if (p.is_arduino) suffix = " [Arduino Uno]";
+        else if (p.is_bt) suffix = " [Bluetooth]";
+        opt.textContent = `${p.d}: ${p.n}${suffix}`;
+        if (res.current === p.d) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    if (!res.connected && previousVal && previousVal !== "AUTO") {
+      sel.value = previousVal;
+    }
+  } catch (e) {
+    console.debug("Ports error:", e);
+  }
+}
+
+async function changePort() {
+  const sel = document.getElementById("port-select");
+  const pill = document.getElementById("port-status-pill");
+  const port = sel.value;
+  isPortSwitching = true;
+  if (pill) {
+    pill.textContent = "CONNECTING…";
+    pill.className = "port-status-badge";
+  }
+  try {
+    const res = await (await fetch("/api/serial", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ port })
+    })).json();
+    isPortSwitching = false;
+    await fetchPorts(true);
+    setStatus(res.ok ? `C O N N E C T E D &nbsp; ${res.port}` : "P O R T &nbsp; E R R O R &nbsp; [MOCK]");
+  } catch (e) {
+    isPortSwitching = false;
+    console.debug("Port switch error:", e);
+  }
+}
+
+// ── Modals: Camera 480p & Gemini Key ───────────────────────────────────────
+function toggleCamModal() {
+  const m = document.getElementById("cam-modal");
+  m.classList.toggle("open");
+}
+
+function toggleGeminiModal() {
+  const m = document.getElementById("gemini-modal");
+  m.classList.toggle("open");
+}
+
+async function toggleDetectionOverlay() {
+  try {
+    const res = await (await fetch("/api/detection", { method: "POST" })).json();
+    setStatus(res.det_on ? "D E T E C T I O N &nbsp; O N" : "D E T E C T I O N &nbsp; O F F");
+  } catch(e) {}
+}
+
+async function triggerDeliver() {
+  await fetch("/api/deliver", { method: "POST" });
+  setStatus("D E L I V E R Y &nbsp; T R I G G E R E D");
+}
+
+async function saveGeminiKey() {
+  let key = document.getElementById("inp-gemini-key").value.trim();
+  const btn = document.querySelector(".save-key-btn");
+  const errEl = document.getElementById("gemini-key-error");
+
+  // Auto-clean common copy-paste artifacts
+  key = key.replace(/^["'`]+|["'`]+$/g, '').trim();
+  if (key.includes("AIza")) {
+    key = key.substring(key.indexOf("AIza")).trim();
+  } else if (key.includes("=")) {
+    key = key.split("=").pop().trim().replace(/^["'`]+|["'`]+$/g, '');
+  }
+
+  if (!key) {
+    if (errEl) { errEl.textContent = "⚠ Please paste your API key first."; errEl.style.display = "block"; }
+    return;
+  }
+  if (errEl) errEl.style.display = "none";
+
+  const origText = btn.textContent;
+  btn.textContent = "VERIFYING…";
+  btn.disabled = true;
+  btn.style.background = "";
+  btn.style.color = "";
+
+  try {
+    const res = await (await fetch("/api/gemini", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key })
+    })).json();
+
+    if (res.ok) {
+      geminiIsReady = true;
+      try { localStorage.setItem("sam_gemini_key", key); } catch(e) {}
+      btn.textContent = "✓ KEY SAVED";
+      btn.style.background = "#00e676";
+      btn.style.color = "#000";
+      const gemBadge = document.getElementById("gemini-pill-badge");
+      if (gemBadge) {
+        gemBadge.textContent = "ONLINE";
+        gemBadge.style.color = "#00e676";
+      }
+      setStatus("G E M I N I &nbsp; A P I &nbsp; K E Y &nbsp; A C C E P T E D");
+      setTimeout(() => toggleGeminiModal(), 1400);
+    } else {
+      // Show error inline — never block with alert()
+      if (errEl) { errEl.textContent = "✗ " + (res.err || "Invalid key — try again."); errEl.style.display = "block"; }
+      btn.textContent = origText;
+      btn.style.background = "";
+      btn.style.color = "";
+      btn.disabled = false;
+    }
+  } catch(e) {
+    if (errEl) { errEl.textContent = "✗ Network error — is the server running?"; errEl.style.display = "block"; }
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
+}
+
+// ── Periodic Polling for Vision & Live Telemetry ────────────────────────────
+let knownLogCount = 0;
+function startStatusPolling() {
+  // 1. Clock timer
+  setInterval(() => {
+    const clockEl = document.getElementById("footer-clock");
+    if (clockEl) {
+      const now = new Date();
+      clockEl.textContent = now.toTimeString().split(" ")[0];
+    }
+  }, 1000);
+
+  // 2. High-speed Telemetry Polling (500ms)
+  setInterval(async () => {
+    try {
+      const res = await (await fetch("/api/status")).json();
+      
+      // FPS Badges
+      const fpsVal = res.fps || 10;
+      const fpsHdr = document.getElementById("hdr-stat-fps");
+      const fpsRight = document.getElementById("stat-fps");
+      const fpsTag = document.getElementById("cam-fps-tag");
+      if (fpsHdr) fpsHdr.textContent = `${fpsVal} FPS`;
+      if (fpsRight) fpsRight.textContent = `${fpsVal} FPS`;
+      if (fpsTag) fpsTag.textContent = `480p • ${fpsVal} FPS`;
+
+      // Serial Link Status
+      if (res.serial) {
+        const serHdr = document.getElementById("hdr-stat-serial");
+        const dotSer = document.getElementById("dot-serial");
+        if (serHdr) {
+          serHdr.textContent = res.serial.ok ? (res.serial.port || "COM8") : "SIMULATION";
+        }
+        if (dotSer) {
+          dotSer.className = res.serial.ok ? "telem-dot online pulse" : "telem-dot";
+        }
+      }
+
+      // Gemini Vision Status
+      if (res.gemini) {
+        geminiIsReady = !!res.gemini.ok;
+        const gemBadge = document.getElementById("gemini-pill-badge");
+        if (gemBadge) {
+          gemBadge.textContent = res.gemini.ok ? "ONLINE" : "CONFIG";
+          gemBadge.style.color = res.gemini.ok ? "#00e676" : "";
+        }
+      }
+
+      // Cube Detection Cards
+      if (res.cubes) {
+        let trackedCount = 0;
+        for (const [color, data] of Object.entries(res.cubes)) {
+          const card = document.getElementById(`card-cube-${color}`);
+          const statusPill = document.getElementById(`status-${color}`);
+          const coordsEl = document.getElementById(`coords-${color}`);
+          const chip = document.getElementById(`chip-${color}`);
+
+          if (data && data.ok) {
+            trackedCount++;
+            if (card) card.classList.add("tracked");
+            if (statusPill) statusPill.textContent = "TRACKING";
+            if (coordsEl) coordsEl.textContent = `X: ${data.x} • Y: ${data.y}`;
+            if (chip) {
+              chip.style.borderColor = "#00e5ff";
+              chip.style.opacity = "1";
+            }
+          } else {
+            if (card) card.classList.remove("tracked");
+            if (statusPill) statusPill.textContent = "SEARCHING";
+            if (coordsEl) coordsEl.textContent = "X: -- • Y: --";
+            if (chip) {
+              chip.style.borderColor = "rgba(255,255,255,0.15)";
+              chip.style.opacity = "0.5";
+            }
+          }
+        }
+        const cubeSummary = document.getElementById("hud-cubes-summary");
+        if (cubeSummary) {
+          cubeSummary.textContent = `${trackedCount}/4 TRACKED`;
+        }
+      }
+
+    } catch (e) {}
+  }, 500);
+
+  // 3. Background Hardware Port Watcher (auto-detects plugged Arduino Uno every 2.5s)
+  setInterval(() => {
+    fetchPorts();
+  }, 2500);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PLASMA RING — OFFICIAL ORIGINKIT 3D WEBGL SHADER ENGINE
+// (Pure Holographic Ring Only — No text, No pills, Exact Color Ramp)
+// ═══════════════════════════════════════════════════════════════════════════
+let rawMicTarget = 0;
+let audioEnergy = 0.05;
+let audioLevel = 0.05;
+
+const VERT_SPHERE_SOURCE = `
+precision highp float;
+attribute vec2 aPolar;
+attribute vec2 aRnd;
+
+uniform vec2  uRes;
+uniform float uFocal;
+uniform float uTime;
+uniform float uRadius;
+uniform float uWaveHeight;
+uniform float uWaveLength;
+uniform float uWaveSpeed;
+uniform vec2  uWaveDir;
+uniform float uCamDist;
+uniform float uCamYaw;
+uniform float uCamPitch;
+uniform float uTilt;
+uniform float uRimPower;
+uniform float uCenter;
+
+uniform float uColorCount;
+uniform vec3  uColors[6];
+uniform vec3  uHotspot;
+uniform vec3  uCamDir;
+
+uniform vec3  uHoverDir;
+uniform float uHoverRadius;
+uniform float uHoverPush;
+uniform float uHoverActive;
+
+varying vec3  vCol;
+varying float vAlpha;
+
+vec3 rampColor(float x) {
+    float p  = clamp(x, 0.0, 1.0) * max(uColorCount - 1.0, 0.0);
+    float i0 = floor(p);
+    float f  = p - i0;
+    vec3 a = uColors[0];
+    vec3 b = uColors[0];
+    for (int i = 0; i < 6; i++) {
+        if (float(i) == i0)       a = uColors[i];
+        if (float(i) == i0 + 1.0) b = uColors[i];
+    }
+    return mix(a, b, f);
+}
+
+void main() {
+    float phi   = aPolar.x;
+    float theta = aPolar.y;
+
+    float sp  = sin(phi); float cp2 = cos(phi);
+    float st  = sin(theta); float ct = cos(theta);
+
+    vec3 norm = vec3(cp2 * ct, sp, cp2 * st);
+    vec3 pos  = norm * uRadius;
+
+    float wFreq = 6.2831853 / max(100.0, uWaveLength);
+    float proj1 = norm.x * uWaveDir.x + norm.z * uWaveDir.y;
+    float proj2 = norm.x * uWaveDir.y - norm.z * uWaveDir.x;
+    float ts = uTime * (uWaveSpeed / 120.0);
+    float wave1 = sin(proj1 * wFreq * 800.0 + ts * 1.2) * cos(norm.y * wFreq * 600.0 + ts * 0.3);
+    float wave2 = sin(proj2 * wFreq * 600.0 + norm.y * 1.5 - ts * 0.5);
+    float smoothWave = (wave1 + wave2 * 0.5) * uWaveHeight;
+    pos += norm * smoothWave;
+
+    // ── Hover bulge & spotlight (safe clamped) ───────────────────────
+    float hFalloff = mix(22.0, 1.5, clamp(uHoverRadius / 100.0, 0.0, 1.0));
+    vec3  hDir     = length(uHoverDir) > 0.001 ? normalize(uHoverDir) : vec3(0.0, 0.0, 1.0);
+    float hDot     = clamp(dot(norm, hDir), 0.0, 1.0);
+    float hEffect  = exp(-(1.0 - hDot) * hFalloff) * clamp(uHoverActive, 0.0, 1.0);
+    float hBulge   = clamp(hEffect * uHoverPush, 0.0, 12.0);
+    pos += norm * hBulge;
+
+    float cy  = cos(uCamYaw); float sy = sin(uCamYaw);
+    float tp  = clamp(uCamPitch + uTilt, -1.15, 1.15);
+    float ctp = cos(tp);      float stp = sin(tp);
+
+    float x1  =  pos.x * cy + pos.z * sy;
+    float z1  = -pos.x * sy + pos.z * cy;
+    float y2  =  pos.y * ctp - z1 * stp;
+    float z2  =  pos.y * stp + z1 * ctp;
+    float rz  =  max(60.0, uCamDist - z2);
+
+    float minDim = min(uRes.x, uRes.y);
+    float sx  = x1 * uFocal / rz;
+    float sy2 = y2 * uFocal / rz;
+    gl_Position  = vec4(sx / (minDim * 0.5), sy2 / (minDim * 0.5), 0.0, 1.0);
+
+    float rimDot  = abs(dot(norm, uCamDir));
+    float fresnel = pow(max(1.0 - rimDot, 0.0), uRimPower);
+    fresnel = max(fresnel, uCenter * rimDot);
+
+    float hoverAlpha = clamp(hEffect * 0.95, 0.0, 1.0);
+    float finalAlpha = clamp(max(fresnel, hoverAlpha), 0.0, 1.0);
+    float bri = 0.50 + aRnd.x * 0.50;
+
+    float t = sp * 0.5 + 0.5;
+    vec3 baseCol = rampColor(1.0 - t);
+    float polar  = min(pow(abs(sp), 4.0), 1.0);
+    vec3 col     = mix(baseCol, uHotspot, polar * 0.88);
+
+    vCol   = col;
+    vAlpha = finalAlpha * bri;
+}
+`;
+
+const FRAG_SOURCE = `
+precision highp float;
+varying vec3  vCol;
+varying float vAlpha;
+void main() {
+    gl_FragColor = vec4(vCol * vAlpha, vAlpha);
+}
+`;
+
+function initPlasmaRing() {
+  const canvas = document.getElementById("plasma-canvas");
+  if (!canvas) return;
+
+  const gl = canvas.getContext("webgl", { alpha: true, antialias: true, depth: false }) ||
+             canvas.getContext("experimental-webgl");
+  if (!gl) {
+    console.warn("WebGL not supported for PlasmaRing");
+    return;
+  }
+
+  function compileShader(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, VERT_SPHERE_SOURCE));
+  gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, FRAG_SOURCE));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+
+  // Wireframe Geometry: N_theta x N_phi
+  const density = 90;
+  const N_theta = Math.max(50, Math.round(density * 2.2));
+  const N_phi = Math.max(30, Math.round(density * 1.5));
+  const count = N_theta * N_phi;
+  const polarA = new Float32Array(count * 2);
+  const rndA = new Float32Array(count * 2);
+
+  let idx = 0;
+  for (let ti = 0; ti < N_theta; ti++) {
+    const theta = (ti / N_theta) * Math.PI * 2;
+    for (let pi = 0; pi < N_phi; pi++) {
+      const phi = ((pi + 0.5) / N_phi - 0.5) * Math.PI;
+      polarA[idx * 2] = phi;
+      polarA[idx * 2 + 1] = theta;
+      rndA[idx * 2] = Math.random();
+      rndA[idx * 2 + 1] = Math.random();
+      idx++;
+    }
+  }
+
+  const numIndices = (N_theta * (N_phi - 1) + N_phi * N_theta) * 2;
+  const indices = new Uint16Array(numIndices);
+  let iIdx = 0;
+  for (let ti = 0; ti < N_theta; ti++) {
+    for (let pi = 0; pi < N_phi - 1; pi++) {
+      indices[iIdx++] = ti * N_phi + pi;
+      indices[iIdx++] = ti * N_phi + (pi + 1);
+    }
+  }
+  for (let pi = 0; pi < N_phi; pi++) {
+    for (let ti = 0; ti < N_theta; ti++) {
+      indices[iIdx++] = ti * N_phi + pi;
+      indices[iIdx++] = ((ti + 1) % N_theta) * N_phi + pi;
+    }
+  }
+
+  const pBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, pBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, polarA, gl.STATIC_DRAW);
+  const aPolar = gl.getAttribLocation(prog, "aPolar");
+  gl.enableVertexAttribArray(aPolar);
+  gl.vertexAttribPointer(aPolar, 2, gl.FLOAT, false, 0, 0);
+
+  const rBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, rBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, rndA, gl.STATIC_DRAW);
+  const aRnd = gl.getAttribLocation(prog, "aRnd");
+  gl.enableVertexAttribArray(aRnd);
+  gl.vertexAttribPointer(aRnd, 2, gl.FLOAT, false, 0, 0);
+
+  const iBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuf);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+  // Uniform locations
+  const uRes = gl.getUniformLocation(prog, "uRes");
+  const uFocal = gl.getUniformLocation(prog, "uFocal");
+  const uTime = gl.getUniformLocation(prog, "uTime");
+  const uRadius = gl.getUniformLocation(prog, "uRadius");
+  const uWaveHeight = gl.getUniformLocation(prog, "uWaveHeight");
+  const uWaveLength = gl.getUniformLocation(prog, "uWaveLength");
+  const uWaveSpeed = gl.getUniformLocation(prog, "uWaveSpeed");
+  const uWaveDir = gl.getUniformLocation(prog, "uWaveDir");
+  const uCamDist = gl.getUniformLocation(prog, "uCamDist");
+  const uCamYaw = gl.getUniformLocation(prog, "uCamYaw");
+  const uCamPitch = gl.getUniformLocation(prog, "uCamPitch");
+  const uTilt = gl.getUniformLocation(prog, "uTilt");
+  const uRimPower = gl.getUniformLocation(prog, "uRimPower");
+  const uCenter = gl.getUniformLocation(prog, "uCenter");
+  const uColorCount = gl.getUniformLocation(prog, "uColorCount");
+  const uColors = gl.getUniformLocation(prog, "uColors[0]");
+  const uHotspot = gl.getUniformLocation(prog, "uHotspot");
+  const uCamDir = gl.getUniformLocation(prog, "uCamDir");
+  const uHoverDir = gl.getUniformLocation(prog, "uHoverDir");
+  const uHoverRadius = gl.getUniformLocation(prog, "uHoverRadius");
+  const uHoverPush = gl.getUniformLocation(prog, "uHoverPush");
+  const uHoverActive = gl.getUniformLocation(prog, "uHoverActive");
+
+  // Exact Originkit Color Palette Buffer: Top #FF3300, Mid #0055FF, Bottom #E200FF
+  const palBuf = new Float32Array([
+    1.0, 0.2, 0.0,       // #FF3300 Neon Red-Orange
+    0.0, 0.333, 1.0,     // #0055FF Electric Cobalt Blue
+    0.886, 0.0, 1.0,     // #E200FF Neon Magenta
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+  ]);
+
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE);
+
+  let yaw = 0.4, pitch = 0.28, t = 0;
+  let isDragging = false, lastX = 0, lastY = 0;
+  let isMouseOver = false, mouseX = 0, mouseY = 0;
+  let hoverActive = 0.0, targetHoverActive = 0.0;
+  let hoverDir = [0, 0, 1];
+
+  canvas.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    rawMicTarget = 0.8; // Pulse plasma on interaction
+  });
+
+  window.addEventListener("mouseup", () => {
+    isDragging = false;
+  });
+
+  canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (mx < 0 || mx > rect.width || my < 0 || my > rect.height) {
+      isMouseOver = false;
+      targetHoverActive = 0.0;
+      return;
+    }
+
+    mouseX = mx;
+    mouseY = my;
+    isMouseOver = true;
+
+    if (isDragging) {
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      yaw += dx * 0.012;
+      pitch = Math.max(-0.95, Math.min(0.95, pitch + dy * 0.012));
+      lastX = e.clientX;
+      lastY = e.clientY;
+    }
+  });
+
+  canvas.addEventListener("mouseleave", () => {
+    isMouseOver = false;
+    isDragging = false;
+    targetHoverActive = 0.0;
+  });
+
+  function render() {
+    t += 0.016;
+    yaw += 0.006; // Calm steady orbit spin
+
+    // Smooth microphone audio reactivity
+    audioEnergy += (rawMicTarget - audioEnergy) * 0.08;
+    audioLevel = audioEnergy;
+    rawMicTarget = Math.max(0, rawMicTarget * 0.94);
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const boxSize = Math.max(100, Math.round(Math.min(rect.width || 140, rect.height || 140) * dpr));
+    if (canvas.width !== boxSize || canvas.height !== boxSize) {
+      canvas.width = boxSize;
+      canvas.height = boxSize;
+    }
+
+    const w = canvas.width;
+    const h = canvas.height;
+    const focal = 380.0;
+    const camDist = 370.0;
+    const tilt = 0.15;
+    const sphereR = 54.0 + audioLevel * 7.0;
+
+    // Ray-sphere hover detection: mapped accurately to buffer pixels
+    if (isMouseOver && rect.width > 0 && rect.height > 0) {
+      const px = (mouseX / rect.width - 0.5) * w;
+      const py = -((mouseY / rect.height - 0.5) * h);
+      const rLen = Math.hypot(px / focal, py / focal, -1.0) || 1.0;
+      const dx = (px / focal) / rLen;
+      const dy = (py / focal) / rLen;
+      const dz = -1.0 / rLen;
+
+      // Ray-sphere intersection with generous envelope for waves
+      const b = camDist * dz;
+      const c = camDist * camDist - (sphereR + 10.0) * (sphereR + 10.0);
+      const disc = b * b - c;
+
+      if (disc >= 0) {
+        targetHoverActive = 1.0;
+        const dist = -b - Math.sqrt(disc);
+        const hcx = dist * dx;
+        const hcy = dist * dy;
+        const hcz = camDist + dist * dz;
+        const hcLen = Math.hypot(hcx, hcy, hcz) || 1.0;
+
+        // Camera-space hit normal
+        const nxC = hcx / hcLen;
+        const nyC = hcy / hcLen;
+        const nzC = hcz / hcLen;
+
+        // Transform camera space normal into world/model space
+        const tp = pitch + tilt;
+        const ctp = Math.cos(tp), stp = Math.sin(tp);
+        const cy_ = Math.cos(yaw), sy_ = Math.sin(yaw);
+
+        // Inverse X-rotation (pitch + tilt)
+        const y1 = nyC * ctp + nzC * stp;
+        const z1 = -nyC * stp + nzC * ctp;
+        const x1 = nxC;
+
+        // Inverse Y-rotation (yaw)
+        const xw = x1 * cy_ - z1 * sy_;
+        const zw = x1 * sy_ + z1 * cy_;
+        const yw = y1;
+        const wLen = Math.hypot(xw, yw, zw) || 1.0;
+
+        if (isNaN(xw) || isNaN(yw) || isNaN(zw) || wLen < 0.001) {
+          hoverDir = [0, 0, 1];
+          targetHoverActive = 0.0;
+        } else {
+          hoverDir = [xw / wLen, yw / wLen, zw / wLen];
+        }
+      } else {
+        // Cursor is at border or empty space outside sphere
+        targetHoverActive = 0.0;
+      }
+    } else {
+      targetHoverActive = 0.0;
+    }
+
+    // Smooth hover fade transition
+    hoverActive += (targetHoverActive - hoverActive) * 0.12;
+
+    gl.viewport(0, 0, w, h);
+    gl.clearColor(0.0, 0.0, 0.0, 0.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.uniform2f(uRes, w, h);
+    gl.uniform1f(uFocal, focal);
+    gl.uniform1f(uTime, t);
+    gl.uniform1f(uRadius, sphereR);
+    gl.uniform1f(uWaveHeight, 10.0 + audioLevel * 14.0);
+    gl.uniform1f(uWaveLength, 260.0);
+    gl.uniform1f(uWaveSpeed, 100.0);
+    gl.uniform2f(uWaveDir, 0.707, 0.707);
+    gl.uniform1f(uCamDist, camDist);
+    gl.uniform1f(uCamYaw, yaw);
+    gl.uniform1f(uCamPitch, pitch);
+    gl.uniform1f(uTilt, tilt);
+    gl.uniform1f(uRimPower, 2.6);
+    gl.uniform1f(uCenter, 0.25);
+    gl.uniform1f(uColorCount, 3.0);
+    gl.uniform3fv(uColors, palBuf);
+    gl.uniform3f(uHotspot, 1.0, 1.0, 1.0);
+    gl.uniform3f(uCamDir, -Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+    gl.uniform3f(uHoverDir, hoverDir[0], hoverDir[1], hoverDir[2]);
+    gl.uniform1f(uHoverRadius, 45.0);
+    gl.uniform1f(uHoverPush, 10.0);
+    gl.uniform1f(uHoverActive, hoverActive);
+
+    gl.drawElements(gl.LINES, numIndices, gl.UNSIGNED_SHORT, 0);
+
+    requestAnimationFrame(render);
+  }
+
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VOICE ASSISTANCE ENGINE (English Only, Echo-Proof, Gemini-Enabled)
+// ═══════════════════════════════════════════════════════════════════════════
+let recognition = null;
+let audioCtx = null;
+let analyser = null;
+let isSamSpeaking = false;
+let samMuteTimer = null;
+let geminiIsReady = true;
+
+// ── Text-to-Speech Engine (SILENT MODE: AI Must Not Talk) ──
+function samSpeak(text, onComplete) {
+  // Silent Mode: Speech output completely muted as user explicitly requested AI must not talk
+  if (window.speechSynthesis) {
+    try { window.speechSynthesis.cancel(); } catch(e) {}
+  }
+  isSamSpeaking = false;
+  if (onComplete) onComplete();
+}
+
+// Preload voices
+if (window.speechSynthesis) {
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
+
+function initVoiceAssistant() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  // 1. Microphone Audio Frequency Tracker with Noise Gate (Plasma Wave Reactive)
+  async function setupMicStream() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64;
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      function trackAudio() {
+        if (analyser && !isSamSpeaking) {
+          analyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+          const avg = sum / dataArray.length;
+          // Noise gate filters out room background hum
+          rawMicTarget = avg > 28 ? Math.min(1.0, (avg - 28) / 50) : 0;
+        } else if (isSamSpeaking) {
+          rawMicTarget = 0.55; // Gentle plasma glow when speaking
+        }
+        requestAnimationFrame(trackAudio);
+      }
+      trackAudio();
+    } catch (e) {
+      console.debug("Mic stream optional/denied:", e);
+    }
+  }
+
+  // 2. Web Speech Recognition (English only, echo-protected)
+  if (SpeechRec) {
+    recognition = new SpeechRec();
+    recognition.lang = "en-US";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    const footerEl = document.getElementById("plasma-footer-status");
+
+    recognition.onstart = () => {
+      if (footerEl) footerEl.textContent = "🎙 LISTENING…";
+    };
+
+    recognition.onresult = (event) => {
+      // If S.A.M. is speaking through the speaker, ignore microphone input completely!
+      if (isSamSpeaking) return;
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const res = event.results[i];
+        const rawText = res[0].transcript.trim();
+        if (!rawText) continue;
+
+        if (footerEl && !isSamSpeaking) {
+          footerEl.textContent = `🎙 "${rawText}"`;
+        }
+
+        if (res.isFinal) {
+          if (isSamSpeaking) return;
+          console.log("[S.A.M. Voice] Heard Final:", rawText);
+          handleVoiceCommand(rawText.toLowerCase());
+        }
+      }
+    };
+
+    recognition.onerror = (e) => {
+      console.debug("Speech error:", e.error);
+      if (e.error === "not-allowed" && footerEl) {
+        footerEl.textContent = "❌ MIC BLOCKED";
+      }
+    };
+
+    recognition.onend = () => {
+      // Auto-restart recognition unless manually stopped
+      setTimeout(() => {
+        if (!isSamSpeaking) {
+          try { recognition.start(); } catch(e) {}
+        }
+      }, 400);
+    };
+
+    try { recognition.start(); } catch(e) {}
+  } else {
+    const footerEl = document.getElementById("plasma-footer-status");
+    if (footerEl) footerEl.textContent = "❌ Speech API not supported";
+  }
+
+  // Auto-init mic stream on user interaction
+  document.addEventListener("click", () => {
+    if (!audioCtx) setupMicStream();
+    if (recognition) {
+      try { recognition.start(); } catch(e) {}
+    }
+  }, { once: true });
+}
+
+async function handleVoiceCommand(phrase) {
+  const transcriptEl = document.getElementById("plasma-transcript");
+  const footerEl = document.getElementById("plasma-footer-status");
+  rawMicTarget = 0.95;
+
+  const p = phrase.trim().toLowerCase();
+
+  // Filter out noise, single letters, breathing, or empty filler words
+  const fillers = ["uh", "um", "ah", "the", "a", "oh", "er", "mm"];
+  if (p.length < 3 || fillers.includes(p)) {
+    return;
+  }
+
+  let actionText = "";
+
+  // ── 1. GRIPPER COMMANDS (ONLY OPEN OR CLOSE PERMITTED) ──────────
+  if (p.includes("gripper") || p.includes("claw") || p.includes("j6") || p.includes("j 6") || p.includes("joint 6")) {
+    if (p.includes("open") || p.includes("release") || p.includes("let go") || p.includes("drop")) {
+      gripperIsOpen = true;
+      currentAngles[5] = GRIPPER_CFG.OPEN;
+      updateSliderUI(5, GRIPPER_CFG.OPEN);
+      const matched = checkMatchingPose(currentAngles);
+      highlightPoseButton(matched);
+      throttleSendAngles(true);
+      fetch("/api/gripper", { method: "POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({open: true}) });
+      setStatus(`G R I P P E R &nbsp; &rarr; &nbsp; OPEN (${GRIPPER_CFG.OPEN}&deg;)`);
+      actionText = `✓ Gripper Opened (${GRIPPER_CFG.OPEN}°)`;
+    } else if (p.includes("close") || p.includes("shut") || p.includes("grab") || p.includes("grip") || p.includes("catch") || p.includes("hold") || p.includes("clamp")) {
+      gripperIsOpen = false;
+      currentAngles[5] = GRIPPER_CFG.CLOSE;
+      updateSliderUI(5, GRIPPER_CFG.CLOSE);
+      const matched = checkMatchingPose(currentAngles);
+      highlightPoseButton(matched);
+      throttleSendAngles(true);
+      fetch("/api/gripper", { method: "POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({open: false}) });
+      setStatus(`G R I P P E R &nbsp; &rarr; &nbsp; CLOSED (${GRIPPER_CFG.CLOSE}&deg;)`);
+      actionText = `✓ Gripper Closed (${GRIPPER_CFG.CLOSE}°)`;
+    } else {
+      setStatus("G R I P P E R &nbsp; &rarr; &nbsp; OPEN OR CLOSE ONLY");
+      actionText = `⚠️ J6 Gripper only accepts OPEN (${GRIPPER_CFG.OPEN}°) or CLOSE (${GRIPPER_CFG.CLOSE}°)`;
+    }
+
+  // ── 2. INDIVIDUAL JOINT COMMANDS (J1 to J5 FIXED PRESETS ONLY) ──
+  // Per user instruction: only lowest, middle, and highest preset angles beside +/- work!
+  // J1: 0°, 90°, 180° | J2: 45°, 90°, 135° | J3: 45°, 90°, 135° | J4: 30°, 90°, 150° | J5: 30°, 90°, 160°
+  } else if (
+    p.includes("j1") || p.includes("j 1") || p.includes("joint 1") || p.includes("base") || p.includes("pan") ||
+    p.includes("j2") || p.includes("j 2") || p.includes("joint 2") || p.includes("shoulder") ||
+    p.includes("j3") || p.includes("j 3") || p.includes("joint 3") || p.includes("elbow") ||
+    p.includes("j4") || p.includes("j 4") || p.includes("joint 4") || p.includes("wrist pitch") || p.includes("pitch") ||
+    p.includes("j5") || p.includes("j 5") || p.includes("joint 5") || p.includes("wrist roll") || p.includes("roll") ||
+    p.includes("wrist")
+  ) {
+    const FIXED_JOINT_RULES = [
+      { idx: 0, label: "J1 (Base)",        keys: ["j1", "j 1", "joint 1", "base", "pan"],         allowed: [0, 90, 180],  min: 0,  mid: 90, max: 180 },
+      { idx: 1, label: "J2 (Shoulder)",    keys: ["j2", "j 2", "joint 2", "shoulder"],            allowed: [45, 90, 135], min: 45, mid: 90, max: 135 },
+      { idx: 2, label: "J3 (Elbow)",       keys: ["j3", "j 3", "joint 3", "elbow"],               allowed: [45, 90, 135], min: 45, mid: 90, max: 135 },
+      { idx: 4, label: "J5 (Wrist Roll)",  keys: ["j5", "j 5", "joint 5", "wrist roll", "roll"],  allowed: [30, 90, 160], min: 30, mid: 90, max: 160 },
+      { idx: 3, label: "J4 (Wrist Pitch)", keys: ["j4", "j 4", "joint 4", "wrist pitch", "pitch", "wrist"], allowed: [30, 90, 150], min: 30, mid: 90, max: 150 }
+    ];
+
+    const matchedRule = FIXED_JOINT_RULES.find(r => r.keys.some(k => p.includes(k)));
+    if (matchedRule) {
+      let target = null;
+      if (p.includes("lowest") || p.includes("min") || p.includes("minimum")) target = matchedRule.min;
+      else if (p.includes("middle") || p.includes("mid") || p.includes("center") || p.includes("centre") || p.includes("neutral")) target = matchedRule.mid;
+      else if (p.includes("highest") || p.includes("max") || p.includes("maximum")) target = matchedRule.max;
+      else if (p.includes("180") || p.includes("one eighty") || p.includes("one hundred eighty")) target = 180;
+      else if (p.includes("160") || p.includes("one sixty") || p.includes("one hundred sixty")) target = 160;
+      else if (p.includes("150") || p.includes("one fifty") || p.includes("one hundred fifty")) target = 150;
+      else if (p.includes("145") || p.includes("one forty five")) target = 145;
+      else if (p.includes("135") || p.includes("one thirty five") || p.includes("one hundred thirty five")) target = 135;
+      else if (p.includes("90") || p.includes("ninety")) target = 90;
+      else if (p.includes("45") || p.includes("forty five") || p.includes("forty-five")) target = 45;
+      else if (p.includes("30") || p.includes("thirty")) target = 30;
+      else if (p.includes(" 0") || p.includes("zero") || p.endsWith(" 0") || p.includes("to 0")) target = 0;
+      else {
+        const m = p.match(/\b(\d+)\b/);
+        if (m) target = parseInt(m[1], 10);
+      }
+
+      if (target !== null) {
+        if (matchedRule.allowed.includes(target)) {
+          currentAngles[matchedRule.idx] = target;
+          updateSliderUI(matchedRule.idx, target);
+          const matchedPose = checkMatchingPose(currentAngles);
+          highlightPoseButton(matchedPose);
+          throttleSendAngles(true);
+          setStatus(`J O I N T &nbsp; ${matchedRule.label.toUpperCase()} &nbsp; &rarr; &nbsp; ${target}&deg;`);
+          actionText = `✓ Moved ${matchedRule.label} to ${target}°`;
+        } else {
+          setStatus(`I N V A L I D &nbsp; A N G L E &nbsp; &rarr; &nbsp; ${matchedRule.label} (${matchedRule.allowed.join("° / ")}°)`);
+          actionText = `⚠️ ${matchedRule.label} only accepts fixed presets: ${matchedRule.allowed.join("°, ")}°`;
+        }
+      } else {
+        actionText = `ℹ️ ${matchedRule.label} fixed presets: ${matchedRule.allowed.join("°, ")}°`;
+      }
+    }
+
+  // ── 3. PRESET POSES (HOME & SLEEP) ──────────────────────────────
+  } else if (p.includes("home") || p.includes("reset") || p.includes("center") || p.includes("centre") || p.includes("neutral")) {
+    applyPose("HOME");
+    actionText = "✓ Pose: HOME [90, 90, 90, 90, 90, 90]";
+
+  } else if (p.includes("sleep") || p.includes("park") || p.includes("fold") || p.includes("stow") || p.includes("rest pose")) {
+    applyPose("SLEEP");
+    actionText = "✓ Pose: SLEEP / PARK [90, 142, 180, 90, 0, 0]";
+
+  // ── 4. BARE OPEN / CLOSE (DEFAULT TO GRIPPER) ────────────────────
+  } else if (p.includes("open") || p.includes("release") || p.includes("let go") || p.includes("drop")) {
+    gripperIsOpen = true;
+    currentAngles[5] = GRIPPER_CFG.OPEN;
+    updateSliderUI(5, GRIPPER_CFG.OPEN);
+    const matched = checkMatchingPose(currentAngles);
+    highlightPoseButton(matched);
+    throttleSendAngles(true);
+    fetch("/api/gripper", { method: "POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({open: true}) });
+    setStatus(`G R I P P E R &nbsp; &rarr; &nbsp; OPEN (${GRIPPER_CFG.OPEN}&deg;)`);
+    actionText = `✓ Gripper Opened (${GRIPPER_CFG.OPEN}°)`;
+
+  } else if (p.includes("close") || p.includes("shut") || p.includes("grab") || p.includes("grip") || p.includes("catch") || p.includes("hold") || p.includes("clamp")) {
+    gripperIsOpen = false;
+    currentAngles[5] = GRIPPER_CFG.CLOSE;
+    updateSliderUI(5, GRIPPER_CFG.CLOSE);
+    const matched = checkMatchingPose(currentAngles);
+    highlightPoseButton(matched);
+    throttleSendAngles(true);
+    fetch("/api/gripper", { method: "POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({open: false}) });
+    setStatus(`G R I P P E R &nbsp; &rarr; &nbsp; CLOSED (${GRIPPER_CFG.CLOSE}&deg;)`);
+    actionText = `✓ Gripper Closed (${GRIPPER_CFG.CLOSE}°)`;
+
+  // ── 4. START / STOP / RELAX / UNJAM ─────────────────────────────
+  } else if (p.includes("start arm") || p.includes("start robot") || p.includes("activate arm") || p.includes("power on")) {
+    startArm();
+    actionText = "✓ Arm Started";
+
+  } else if (p.includes("stop") || p.includes("halt") || p.includes("freeze") || p.includes("emergency stop")) {
+    stopArm();
+    actionText = "✓ Arm Halted";
+
+  } else if (p.includes("relax") || p.includes("anti jitter") || p.includes("silent")) {
+    relaxArm();
+    actionText = "✓ Servos Relaxed";
+
+  } else if (p.includes("unjam") || p.includes("free wrist") || p.includes("free gripper")) {
+    unjamArm();
+    actionText = "✓ Wrist & Claw Unjammed";
+
+  // ── 5. SAVE / RECORD / PLAY ─────────────────────────────────────
+  } else if (p.includes("save") || p.includes("record") || p.includes("remember") || p.includes("store")) {
+    savePosition();
+    actionText = "✓ Position Saved";
+
+  } else if (p.includes("play") || p.includes("run routine") || p.includes("execute") || p.includes("perform")) {
+    playMovements();
+    actionText = "✓ Playing Routine";
+
+  // ── 6. CAMERA & VISION OVERLAY ──────────────────────────────────
+  } else if (p.includes("camera") || p.includes("video stream")) {
+    toggleCamModal();
+    actionText = "✓ Camera Toggled";
+
+  } else if (p.includes("detect") || p.includes("ai overlay") || p.includes("vision overlay")) {
+    toggleDetectionOverlay();
+    actionText = "✓ Vision Toggled";
+
+  // ── 7. HARDWARE DIAGNOSTIC TEST ─────────────────────────────────
+  } else if (p.includes("test hardware") || p.includes("hardware test") || p.includes("test arm") || p.includes("diagnose")) {
+    testJoints();
+    actionText = "✓ Hardware Test Started";
+
+  // ── 8. GOOGLE GEMINI AI (INTELLIGENT KINEMATICS & MOVEMENT) ─────
+  } else if (geminiIsReady) {
+    if (footerEl) footerEl.textContent = "✨ GEMINI PROCESSING…";
+    try {
+      const gRes = await (await fetch("/api/gemini/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: phrase })
+      })).json();
+
+      if (gRes.ok) {
+        if (gRes.angles && Array.isArray(gRes.angles) && gRes.angles.length === 6) {
+          currentAngles = gRes.angles.map(a => Math.round(Number(a)));
+          currentAngles.forEach((ang, idx) => updateSliderUI(idx, ang));
+          gripperIsOpen = (currentAngles[5] >= (GRIPPER_CFG.OPEN + GRIPPER_CFG.CLOSE) / 2);
+          throttleSendAngles(true);
+          const matchedPose = gRes.pose || checkMatchingPose(currentAngles);
+          highlightPoseButton(matchedPose);
+        }
+        const desc = gRes.description || gRes.reply || "Movement executed";
+        actionText = `✨ Gemini AI: ${desc}`;
+        setStatus(`G E M I N I &nbsp; A I &nbsp; &rarr; &nbsp; ${desc.toUpperCase()}`);
+      } else {
+        actionText = `Heard: "${phrase}"`;
+      }
+    } catch(err) {
+      actionText = `Heard: "${phrase}"`;
+    }
+
+  // ── 9. UNRECOGNIZED / OFFLINE ───────────────────────────────────
+  } else {
+    actionText = `Heard: "${phrase}"`;
+  }
+
+  // SILENT FEEDBACK: AI must not talk through speakers!
+  // Purely visual updates to telemetry HUD, status banner, and transcript.
+  if (transcriptEl) {
+    transcriptEl.innerHTML = `<span style="color:#9aa7bc; font-size:10px;">"${phrase}"</span><br><strong style="color:#00e676;">${actionText}</strong>`;
+    transcriptEl.classList.add("understood");
+    setTimeout(() => transcriptEl.classList.remove("understood"), 5000);
+  }
+  if (footerEl) {
+    footerEl.textContent = actionText || `🎙 "${phrase}"`;
+    setTimeout(() => {
+      footerEl.textContent = "🎙 LISTENING (SILENT MODE)";
+    }, 3200);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BACKGROUND PATHS (Animated Floating Streamlines — 72 Paths — Calm & Steady)
+// ═══════════════════════════════════════════════════════════════
+function initBackgroundPaths() {
+  const container = document.getElementById("bg-paths");
+  if (!container) return;
+
+  function generatePaths(position) {
+    let out = "";
+    for (let i = 0; i < 36; i++) {
+      const d = `M-${380 - i * 5 * position} -${189 + i * 6}C-${
+        380 - i * 5 * position
+      } -${189 + i * 6} -${312 - i * 5 * position} ${216 - i * 6} ${
+        152 - i * 5 * position
+      } ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${
+        684 - i * 5 * position
+      } ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`;
+      const width = (0.75 + i * 0.035).toFixed(2);
+      const opacity = (0.09 + (i % 10) * 0.015).toFixed(3);
+      const dur = (30 + (i * 2.1) % 25).toFixed(1);
+      const strokeColor = position === 1 ? `rgba(0, 229, 255, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
+      out += `<path class="bg-path-line" d="${d}" stroke="${strokeColor}" stroke-width="${width}" style="--flow-dur:${dur}s;" />`;
+    }
+    return out;
+  }
+
+  container.innerHTML = `
+    <svg class="bg-paths-svg" viewBox="-600 -400 1500 1300" fill="none" preserveAspectRatio="xMidYMid slice">
+      <title>Background Paths</title>
+      ${generatePaths(1)}
+      ${generatePaths(-1)}
+    </svg>
+  `;
+}
+</script>
+
+</body>
+</html>
